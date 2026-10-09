@@ -24,6 +24,8 @@
   }
   function isVisible(el) {
     if (!el || !el.isConnected) return false;
+    // checkVisibility (Chrome 105+) memperhitungkan leluhur yang display:none / content-visibility, tidak hanya elemen itu sendiri.
+    if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ visibilityProperty: true })) return false;
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') return false;
     if (cs.opacity !== '' && parseFloat(cs.opacity) === 0 && el.type !== 'checkbox' && el.type !== 'radio') return false;
