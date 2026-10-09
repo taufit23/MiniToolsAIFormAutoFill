@@ -5,9 +5,8 @@
   let host = null; let root = null; let hideTimer = null;
 
   const CSS = `
-    :host{all:initial}
+    :host{all:initial;color-scheme:light}
     .card{position:fixed;right:16px;bottom:16px;z-index:2147483647;width:340px;max-height:70vh;display:flex;flex-direction:column;font:13px/1.45 system-ui,Segoe UI,sans-serif;color:#0f172a;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);overflow:hidden}
-    @media (prefers-color-scheme:dark){.card{background:#0f172a;color:#e2e8f0;border-color:#334155}.row{border-color:#1e293b}.btn{background:#1e293b;color:#e2e8f0;border-color:#334155}.muted{color:#94a3b8}}
     .head{display:flex;align-items:center;gap:8px;padding:10px 12px;font-weight:600}
     .dot{width:8px;height:8px;border-radius:50%;background:#8b5cf6;flex:none}.dot.busy{animation:p 1s infinite}.dot.err{background:#ef4444}.dot.ok{background:#22c55e}
     @keyframes p{50%{opacity:.25}}

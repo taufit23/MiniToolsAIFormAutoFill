@@ -50,7 +50,7 @@ Server lain bisa ditambah di **Opsi**. Model dimuat ke memori sejak popup dibuka
 - **Komponen kustom**: combobox/listbox ARIA, switch/checkbox ARIA, radio group, `contenteditable`, shadow DOM, iframe, dan dialog.
 - **Aman**: field `hidden`, `file`, `captcha`, disabled, dan readonly dilewati; form **tidak pernah dikirim** otomatis. Opsi daftar situs yang diizinkan.
 - **Seed**: isi angka di Opsi supaya data generator lokal bisa diulang persis.
-- Tema terang/gelap mengikuti sistem.
+- Tampilan dipaksa tema terang (popup, opsi, dan kartu hasil) supaya selalu terbaca, apa pun tema browser/sistem.
 
 ## Catatan teknis
 
