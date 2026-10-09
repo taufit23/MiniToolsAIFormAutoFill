@@ -74,3 +74,14 @@ npm run test:live  # tambah tes end-to-end ke Ollama lokal sungguhan
   ditangani lewat pola ARIA umum dan perlu dicoba di aplikasi nyata.
 - Tidak mengisi unggah file dan CAPTCHA.
 - Kecepatan bergantung model dan perangkat keras: model 7B sekitar 10-15 dtk per form (pertama kali 30 dtk saat model dimuat). Pakai strategi **Cepat** untuk form besar.
+
+## Cara mencoba (pemula)
+
+1. Jalankan Ollama. Cek di browser: `http://localhost:11434` harus menampilkan "Ollama is running".
+2. `chrome://extensions` -> aktifkan **Developer mode** -> **Load unpacked** -> pilih folder ini. Klik ikon puzzle di toolbar lalu **pin** ekstensi.
+3. Sajikan halaman uji: `cd test-page` lalu `python -m http.server 5500`, buka `http://localhost:5500/demo-form.html`.
+4. Klik ikon ekstensi: status harus "Terhubung: Ollama" dan dropdown model terisi. Klik **Isi form**.
+5. Coba juga: Simpan dalam keadaan kosong -> muncul galat -> **Perbaiki error**; buka dialog -> isi (hanya dialog yang terisi); ganti mode ke **Negatif**.
+
+Bila sesuatu tidak jalan: di `chrome://extensions` klik **service worker** pada kartu ekstensi (konsol background), klik kanan ikon -> **Inspect popup**,
+dan tombol **muat ulang** (panah melingkar) setelah mengubah kode. Halaman lain hanya terisi setelah ekstensi dimuat ulang dan halaman di-refresh.

@@ -42,6 +42,11 @@
     const lb = el.getAttribute('aria-labelledby');
     if (lb) bits.push(lb.split(/\s+/).map((id) => text(document.getElementById(id))).join(' '));
     if (!bits.filter(Boolean).length) {
+      // label yang langsung mendahului kontrol (mis. <label>Notifikasi</label><button role="switch">)
+      const pv = el.previousElementSibling;
+      if (pv && pv.tagName === 'LABEL' && !pv.querySelector('input,select,textarea,button') && text(pv).length < 80) bits.push(text(pv));
+    }
+    if (!bits.filter(Boolean).length) {
       // Nuxt UI / pola umum: <div><label>…</label><div><input></div></div>
       let p = el.parentElement;
       for (let i = 0; p && i < 4; i++, p = p.parentElement) {
@@ -143,7 +148,7 @@
         let grp = radioGroups.get(g);
         if (!grp) {
           grp = Object.assign({}, base, { kind: 'radio', options: [], els: [] });
-          grp.label = (el.closest('fieldset') && text(el.closest('fieldset').querySelector('legend'))) || sectionOfRadio(el) || base.label;
+          grp.label = sectionOfRadio(el) || (el.closest('fieldset') && text(el.closest('fieldset').querySelector('legend'))) || base.label;
           radioGroups.set(g, grp); fields.push(grp);
         }
         grp.options.push({ value: el.value, label: optionLabel(el) || el.value });
@@ -188,8 +193,10 @@
     return { fields: clean, skipped, page: { title: document.title, host: location.host, path: location.pathname, heading: heading.slice(0, 100) }, scopedToDialog: root !== document && !!openDialog() };
   }
   function sectionOfRadio(el) {
-    const g = el.closest('[role="radiogroup"],fieldset,div');
-    return g ? text(g.querySelector('legend,label,span,p')).slice(0, 60) : '';
+    const g = el.closest('[role="radiogroup"]') || el.closest('div');
+    if (!g) return '';
+    const lead = [...g.querySelectorAll('legend,label,span,p')].find((n) => !n.querySelector('input') && !n.contains(el) && !(n.tagName === 'LABEL' && n.control));
+    return lead ? text(lead).replace(/[:：]\s*$/, '').slice(0, 60) : '';
   }
   function optionLabel(el) {
     if (el.labels && el.labels[0]) return text(el.labels[0]);
