@@ -85,3 +85,9 @@ npm run test:live  # tambah tes end-to-end ke Ollama lokal sungguhan
 
 Bila sesuatu tidak jalan: di `chrome://extensions` klik **service worker** pada kartu ekstensi (konsol background), klik kanan ikon -> **Inspect popup**,
 dan tombol **muat ulang** (panah melingkar) setelah mengubah kode. Halaman lain hanya terisi setelah ekstensi dimuat ulang dan halaman di-refresh.
+
+## Bagikan sebagai ZIP
+
+`python tools/pack.py` membuat `dist/ai-form-fill-lokal-<versi>.zip` (manifest di akar zip, tanpa node_modules/tests).
+Penerima: ekstrak zip ke satu folder tetap (jangan dihapus), lalu `chrome://extensions` -> Developer mode -> **Load unpacked** -> pilih folder hasil ekstrak.
+Chrome versi tertentu juga menerima zip yang di-drag ke halaman `chrome://extensions` (Developer mode aktif); bila tidak bekerja, pakai cara ekstrak di atas.
