@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Halaman Uji AI Form Fill</title>
+<style>
+  body{font:14px system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#0f172a}
+  h1{font-size:20px}fieldset{border:1px solid #cbd5e1;border-radius:8px;margin:16px 0}
+  label{display:block;margin:10px 0 3px;font-weight:500}input,select,textarea{width:100%;box-sizing:border-box;padding:7px;border:1px solid #cbd5e1;border-radius:6px;font:inherit}
+  input[type=radio],input[type=checkbox]{width:auto}.inline label{display:inline;margin-right:14px;font-weight:400}
+  .err{color:#dc2626;font-size:12px;min-height:14px}button{padding:8px 14px;border-radius:6px;border:1px solid #7c3aed;background:#7c3aed;color:#fff;cursor:pointer;margin-right:8px}
+  button.sec{background:#fff;color:#7c3aed}
+  #dlg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center}
+  #dlg .box{background:#fff;padding:20px;border-radius:10px;width:380px}
+  #cb-list{border:1px solid #cbd5e1;border-radius:6px;margin-top:2px;display:none}#cb-list [role=option]{padding:6px 8px;cursor:pointer}#cb-list [role=option]:hover{background:#ede9fe}
+  pre{background:#f1f5f9;padding:10px;border-radius:8px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>Halaman Uji: Pelanggan Baru</h1>
+<p>Tekan <b>Alt+Shift+F</b> atau klik ikon ekstensi lalu <b>Isi form</b>. Klik <b>Simpan</b> dulu dalam keadaan kosong untuk melihat pesan galat, lalu coba <b>Perbaiki error validasi</b>.</p>
+
+<form id="f" novalidate>
+  <fieldset><legend>Data Pelanggan</legend>
+    <label for="nm">Nama Lengkap *</label><input id="nm" name="name" required maxlength="30"><div class="err" id="e-nm"></div>
+    <label for="em">Email *</label><input id="em" type="email" name="email" required autocomplete="email"><div class="err" id="e-em"></div>
+    <label for="ph">Telepon (10-13 digit)</label><input id="ph" name="phone" pattern="\d{10,13}" maxlength="13" inputmode="numeric"><div class="err" id="e-ph"></div>
+    <label for="co">Perusahaan</label><input id="co" name="company">
+    <label for="np">NPWP (15 digit)</label><input id="np" name="npwp" maxlength="15">
+    <label for="tp">Tipe Pelanggan *</label>
+    <select id="tp" name="type" required><option value="">-- pilih --</option><option value="retail">Retail</option><option value="grosir">Grosir</option><option value="agen">Agen</option></select>
+    <div class="inline"><label>Status:</label><label><input type="radio" name="st" value="active"> Aktif</label><label><input type="radio" name="st" value="inactive"> Nonaktif</label></div>
+    <label for="tg">Tanggal Bergabung</label><input id="tg" type="date">
+    <label for="lm">Limit Kredit (Rp, kelipatan 500.000, maks 50 juta)</label><input id="lm" type="number" min="0" max="50000000" step="500000">
+    <label><input type="checkbox" name="ppn"> Kena PPN</label>
+  </fieldset>
+
+  <fieldset><legend>Komponen kustom (ARIA, seperti Nuxt UI)</legend>
+    <label for="prov">Provinsi</label>
+    <div style="position:relative"><input id="prov" role="combobox" aria-controls="cb-list" aria-expanded="false" placeholder="Pilih provinsi">
+      <div id="cb-list" role="listbox"><div role="option">DKI Jakarta</div><div role="option">Jawa Barat</div><div role="option">Jawa Timur</div><div role="option">Bali</div></div></div>
+    <label>Notifikasi email</label><button type="button" role="switch" aria-checked="false" id="sw" class="sec">Mati</button>
+    <label for="al">Alamat</label><textarea id="al" rows="3" maxlength="120"></textarea>
+  </fieldset>
+
+  <button type="submit">Simpan</button><button type="button" class="sec" id="open">Buka dialog (isi hanya dialog)</button>
+</form>
+
+<div id="dlg"><div class="box" role="dialog" aria-modal="true">
+  <h3>Kontak Tambahan</h3>
+  <label for="dn">Nama kontak</label><input id="dn"><label for="dj">Jabatan</label><input id="dj">
+  <p><button type="button" id="close">Tutup</button></p>
+</div></div>
+
+<h3>Hasil submit</h3><pre id="out">(belum ada)</pre>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  // combobox ARIA sederhana
+  $('prov').addEventListener('click', () => { $('cb-list').style.display = 'block'; });
+  $('prov').addEventListener('input', () => { $('cb-list').style.display = 'block'; });
+  for (const o of document.querySelectorAll('#cb-list [role=option]')) o.addEventListener('click', () => { $('prov').value = o.textContent; $('cb-list').style.display = 'none'; });
+  $('sw').addEventListener('click', () => { const on = $('sw').getAttribute('aria-checked') !== 'true'; $('sw').setAttribute('aria-checked', on); $('sw').textContent = on ? 'Hidup' : 'Mati'; });
+  $('open').addEventListener('click', () => { $('dlg').style.display = 'flex'; });
+  $('close').addEventListener('click', () => { $('dlg').style.display = 'none'; });
+
+  // validasi saat submit, menandai aria-invalid + pesan galat
+  $('f').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const bad = [];
+    const check = (id, ok, msg) => { const el = $(id); const m = $('e-' + id); if (!ok) { el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', 'e-' + id); if (m) m.textContent = msg; bad.push(id); } else { el.removeAttribute('aria-invalid'); if (m) m.textContent = ''; } };
+    check('nm', $('nm').value.trim().length > 0, 'Nama wajib diisi');
+    check('em', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($('em').value), 'Email tidak valid');
+    check('ph', !$('ph').value || /^\d{10,13}$/.test($('ph').value), 'Telepon harus 10-13 digit angka');
+    $('out').textContent = bad.length ? 'GAGAL validasi: ' + bad.join(', ') : 'BERHASIL:\n' + JSON.stringify(Object.fromEntries(new FormData($('f'))), null, 2);
+  });
+</script>
+</body>
+</html>
