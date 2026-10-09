@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="popup.css">
+<title>AI Form Fill</title>
+</head>
+<body>
+  <header>
+    <div class="logo">✨</div>
+    <div><strong>AI Form Fill</strong><div id="status" class="muted">Mendeteksi model…</div></div>
+    <button id="openOptions" class="icon" title="Opsi">⚙</button>
+  </header>
+
+  <section>
+    <label>Model <span id="modelHint" class="muted"></span></label>
+    <select id="model"></select>
+  </section>
+
+  <section class="row2">
+    <div>
+      <label>Mode</label>
+      <select id="mode"></select>
+    </div>
+    <div>
+      <label>Bahasa isian</label>
+      <select id="locale"><option value="id-ID">Indonesia</option><option value="en-US">Inggris</option></select>
+    </div>
+  </section>
+
+  <section>
+    <label>Strategi</label>
+    <select id="strategy"><option value="ai">Cerdas - semua field oleh AI (koheren)</option><option value="hybrid">Cepat - AI hanya untuk yang sulit</option></select>
+  </section>
+
+  <section class="checks">
+    <label><input type="checkbox" id="overwrite"> Timpa field yang sudah terisi</label>
+    <label><input type="checkbox" id="includePassword"> Isi kolom password</label>
+  </section>
+
+  <section>
+    <label>Catatan situs <span id="host" class="muted"></span></label>
+    <textarea id="siteNotes" rows="3" placeholder="Aturan bisnis halaman/situs ini, mis. NPWP 15 digit, telepon maks 13 digit, kode unik per cabang…"></textarea>
+  </section>
+
+  <section class="actions">
+    <button id="fill" class="primary">Isi form (Alt+Shift+F)</button>
+    <button id="fix">Perbaiki error</button>
+    <button id="undo">Urungkan</button>
+  </section>
+  <div id="result" class="muted"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

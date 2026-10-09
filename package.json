@@ -1,0 +1,14 @@
+{
+  "name": "mini-tools-ai-form-autofill",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ekstensi browser (MV3) untuk mengisi form dengan data uji dari LLM lokal.",
+  "scripts": {
+    "icons": "node tools/make-icons.js",
+    "test": "node --test",
+    "test:live": "node -e \"process.env.AIFF_LIVE=1;require('child_process').spawnSync(process.execPath,['--test'],{stdio:'inherit',env:process.env})\""
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}

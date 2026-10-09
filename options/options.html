@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>AI Form Fill - Opsi</title>
+<style>
+  :root{color-scheme:light dark;--bg:#fff;--fg:#0f172a;--mut:#64748b;--line:#e2e8f0;--acc:#7c3aed}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f172a;--fg:#e2e8f0;--mut:#94a3b8;--line:#334155}}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,sans-serif}
+  main{max-width:760px;margin:0 auto;padding:24px 20px 60px}
+  h1{font-size:20px}h2{font-size:15px;margin:26px 0 8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+  label{display:block;font-weight:500;margin:10px 0 3px}.hint{color:var(--mut);font-size:12px;font-weight:400}
+  input[type=text],input[type=number],textarea,select{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;font:inherit}
+  .row{display:flex;gap:12px}.row>div{flex:1}
+  button{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer;font:inherit}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+  #saved{color:#16a34a;margin-left:10px}
+</style>
+</head>
+<body>
+<main>
+  <h1>✨ AI Form Fill Lokal - Opsi</h1>
+
+  <h2>Server LLM lokal</h2>
+  <p class="hint">Server yang terdeteksi otomatis: Ollama (11434), LM Studio (1234), llama.cpp/LocalAI/vLLM (8080), Jan (1337), GPT4All (4891). Tambahkan alamat lain di bawah (format OpenAI-compatible, atau pilih Ollama).</p>
+  <table id="endpoints"><thead><tr><th>Nama</th><th>URL</th><th>API</th><th>Kunci API</th><th>Aktif</th><th></th></tr></thead><tbody></tbody></table>
+  <p><button id="addEndpoint">+ Tambah server</button> <button id="resetEndpoints">Kembali ke bawaan</button> <button id="testEndpoints">Tes koneksi</button> <span id="detectOut" class="hint"></span></p>
+
+  <h2>Pembuatan data</h2>
+  <div class="row">
+    <div><label>Suhu (kreativitas) <span class="hint">0 = konsisten, 1 = bervariasi</span></label><input type="number" id="temperature" min="0" max="1.5" step="0.1"></div>
+    <div><label>Field per permintaan <span class="hint">form besar dipecah</span></label><input type="number" id="chunkSize" min="5" max="60"></div>
+    <div><label>Batas waktu (detik)</label><input type="number" id="timeoutSec" min="10" max="600"></div>
+  </div>
+  <div class="row">
+    <div><label>Seed <span class="hint">kosong = acak; angka = data lokal bisa diulang persis</span></label><input type="text" id="seed"></div>
+  </div>
+  <label><input type="checkbox" id="keepPersona"> Pakai persona yang sama selama 30 menit (alur beberapa halaman tetap konsisten)</label>
+  <label><input type="checkbox" id="highlight"> Beri bingkai warna pada field yang diisi (ungu = AI, biru = generator lokal)</label>
+
+  <h2>Konteks untuk AI</h2>
+  <label>Konteks umum <span class="hint">berlaku di semua situs</span></label>
+  <textarea id="userContext" rows="4" placeholder="Contoh: Ini aplikasi ERP akuntansi Indonesia. Mata uang IDR, telepon maks 13 digit, NPWP 15/16 digit, kode dokumen diawali PO/SO."></textarea>
+
+  <h2>Keamanan</h2>
+  <label>Situs yang diizinkan <span class="hint">kosong = semua situs. Pisahkan dengan koma/baris, mis. localhost, erp.perusahaan.com</span></label>
+  <textarea id="allowedHosts" rows="2"></textarea>
+  <p class="hint">Semua data dikirim hanya ke server LLM di komputer Anda (alamat di atas). Tidak ada telemetri, tidak ada layanan cloud.</p>
+
+  <h2>Catatan per situs</h2>
+  <table id="notes"><thead><tr><th>Situs</th><th>Catatan</th><th></th></tr></thead><tbody></tbody></table>
+
+  <h2>Cadangan</h2>
+  <p><button id="export">Ekspor pengaturan</button> <label style="display:inline"><input type="file" id="import" accept="application/json" style="display:none"><button id="importBtn">Impor pengaturan</button></label></p>
+
+  <p style="margin-top:28px"><button id="save" class="primary">Simpan</button><span id="saved"></span></p>
+</main>
+<script src="../lib/providers.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
