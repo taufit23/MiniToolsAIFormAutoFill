@@ -11,3 +11,8 @@ select option{background:#fff;color:var(--fg)}
 .actions .primary{flex:2;background:var(--acc);border-color:var(--acc);color:#fff}
 .actions button:disabled{opacity:.5;cursor:wait}
 #result{padding:0 14px 12px}
+.snaprow{display:flex;gap:6px;margin:4px 0}.snaprow input{flex:1;min-width:0;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--fg);font:inherit}
+.snaprow button{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--fg);cursor:pointer;font:inherit}
+.snaprow .primary{background:var(--acc);border-color:var(--acc);color:#fff;flex:1}
+.snaprow button:disabled{opacity:.5;cursor:wait}
+#snapBox{border-bottom:1px solid var(--line)}

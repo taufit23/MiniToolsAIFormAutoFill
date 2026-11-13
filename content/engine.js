@@ -2,7 +2,7 @@
  * apply() mengisi dengan event yang dimengerti Vue/React, undo() mengembalikan, collectErrors() membaca pesan galat validasi. */
 (function () {
   'use strict';
-  if (window.__aiFill && window.__aiFill.version >= 1) return;
+  if (window.__aiFill && window.__aiFill.version >= 2) return;
 
   const registry = new Map(); // id -> { el|els, field }
   let history = []; // [{ el, kind, prev }]
@@ -226,7 +226,7 @@
     } catch (e) { /* abaikan */ }
   }
 
-  async function fillCombobox(el, wanted) {
+  async function fillCombobox(el, wanted, strict) {
     const w = String(wanted || '').toLowerCase().trim();
     const isInput = el.tagName === 'INPUT';
     el.focus();
@@ -237,12 +237,18 @@
     let list = listId ? document.getElementById(listId) : null;
     if (!list) list = [...document.querySelectorAll('[role="listbox"]')].filter(isVisible).pop();
     const items = list ? [...list.querySelectorAll('[role="option"]')].filter(isVisible) : [...document.querySelectorAll('[role="option"]')].filter(isVisible);
-    if (!items.length) return false;
+    if (!items.length) { if (strict) closeList(el); return false; }
     let pick = items.find((i) => text(i).toLowerCase() === w) || items.find((i) => w && text(i).toLowerCase().includes(w)) || items.find((i) => w && w.includes(text(i).toLowerCase()) && text(i));
+    // Mode ketat (pasang isian tersimpan): jangan menebak. Bila pilihan yang sama belum ada (mis. opsi dari API belum dimuat), gagal agar dicoba lagi.
+    if (!pick && strict) { closeList(el); return false; }
     if (!pick) pick = items.find((i) => !i.getAttribute('aria-disabled')) || items[0];
     pick.click();
     await sleep(80);
     return true;
+  }
+
+  function closeList(el) {
+    try { el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true })); } catch (e) { /* abaikan */ }
   }
 
   async function apply(items, opts) {
@@ -369,5 +375,155 @@
     return r.fields[0] || null;
   }
 
-  window.__aiFill = { version: 1, scan, apply, undo, collectErrors, scanInvalid, registrySize: () => registry.size, _internals: { labelOf, sectionOf } };
+  // ── simpan & pasang isian ───────────────────────────────────────────────────
+  // snapshot() membaca SEMUA isian yang terlihat (termasuk yang sudah terisi); restore() memasangnya kembali ke field yang cocok,
+  // mengulang beberapa putaran supaya dropdown yang opsinya baru dimuat (bergantung dropdown lain / API) sempat tersedia.
+  function kindOf(el) {
+    const tag = el.tagName; const role = el.getAttribute('role');
+    if (tag === 'INPUT') {
+      const t = (el.type || 'text').toLowerCase();
+      if (SKIP_INPUT.has(t)) return null;
+      if (role === 'combobox' || el.getAttribute('aria-haspopup') === 'listbox') return 'combobox';
+      if (role === 'switch') return 'switch';
+      return t === 'checkbox' ? 'checkbox' : t === 'radio' ? 'radio' : t;
+    }
+    if (tag === 'TEXTAREA') return 'textarea';
+    if (tag === 'SELECT') return el.multiple ? 'multiselect' : 'select';
+    if (role === 'combobox') return 'combobox';
+    if (role === 'switch') return 'switch';
+    if (role === 'checkbox') return 'checkbox';
+    if (el.isContentEditable && role !== 'radiogroup') return 'contenteditable';
+    return null;
+  }
+  // id bawaan framework (v-0-1, reka-…, :r1:) berubah tiap muat ulang, jadi tidak dipakai sebagai kunci.
+  const stableId = (id) => (id && !/\d{2,}|^[:_]|reka|radix|headless|^v-|^ui-/i.test(id) ? id : '');
+  const frameTag = () => (window === window.top ? 'top' : location.origin + location.pathname);
+  const EMPTY_COMBO = /^(pilih|select|choose|search|cari|--)/i;
+
+  function collect(opts) {
+    const root = scopeRoot('auto');
+    const selector = 'input, select, textarea, [contenteditable=""], [contenteditable="true"], [role="combobox"], [role="switch"], [role="checkbox"]';
+    const out = []; const groups = new Map(); const seen = new Set();
+    for (const el of deepQuery(root, selector)) {
+      if (seen.has(el)) continue;
+      seen.add(el);
+      const kind = kindOf(el);
+      if (!kind) continue;
+      if (kind === 'password' && !opts.includePassword) continue;
+      const toggle = kind === 'checkbox' || kind === 'radio' || kind === 'switch';
+      if (!isVisible(el) && !toggle) continue;
+      if (el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
+      if (el.readOnly && kind !== 'combobox') continue;
+      if (el.closest('[hidden],[aria-hidden="true"]') && !el.closest('[role="dialog"]')) continue;
+      if (/captcha|recaptcha|honeypot/i.test((el.name || '') + (el.id || '') + (el.className || ''))) continue;
+      const label = labelOf(el);
+      const base = { kind, label, name: el.getAttribute('name') || '', domId: stableId(el.id), section: sectionOf(el), placeholder: el.getAttribute('placeholder') || '' };
+      if (kind === 'radio') {
+        const g = (el.name ? 'n:' + el.name : 'e:' + out.length) + '|' + (el.form ? 'f' : '');
+        let grp = groups.get(g);
+        if (!grp) {
+          grp = Object.assign({}, base, { els: [] });
+          grp.label = sectionOfRadio(el) || (el.closest('fieldset') && text(el.closest('fieldset').querySelector('legend'))) || base.label;
+          groups.set(g, grp); out.push(grp);
+        }
+        grp.els.push(el);
+        if (el.checked) grp.value = el.value;
+        continue;
+      }
+      const c = base; c.el = el;
+      if (kind === 'select') { c.value = el.value; c.text = el.selectedIndex >= 0 ? text(el.options[el.selectedIndex]) : ''; }
+      else if (kind === 'multiselect') c.value = [...el.selectedOptions].map((o) => o.value);
+      else if (kind === 'checkbox' || kind === 'switch') c.value = el.tagName === 'INPUT' ? el.checked : el.getAttribute('aria-checked') === 'true';
+      else if (kind === 'contenteditable') c.value = text(el);
+      else if (kind === 'combobox') { const t = el.tagName === 'INPUT' ? el.value : text(el); c.value = EMPTY_COMBO.test(t) || t === base.placeholder ? '' : t; }
+      else c.value = el.value || '';
+      out.push(c);
+    }
+    return out;
+  }
+  const hasValue = (c) => (Array.isArray(c.value) ? c.value.length > 0 : c.value !== '' && c.value !== undefined && c.value !== null);
+  const strongKey = (c) => [c.kind, c.domId, c.name, c.label, c.section].join('|');
+  const weakKey = (c) => [c.kind, c.name, c.label].join('|');
+
+  function snapshot(opts) {
+    opts = Object.assign({ includePassword: true }, opts || {});
+    const tag = frameTag();
+    // Teks/pilihan kosong tidak disimpan (tidak ada yang perlu dipulihkan); centang disimpan apa adanya supaya keadaan "tidak dicentang" juga kembali.
+    const items = collect(opts).filter((c) => (c.kind === 'checkbox' || c.kind === 'switch') || hasValue(c))
+      .map((c) => ({ frame: tag, kind: c.kind, label: c.label, name: c.name, domId: c.domId, section: c.section, value: c.value, text: c.text || '' }));
+    const heading = text(document.querySelector('h1')) || text(document.querySelector('[data-slot="title"]')) || '';
+    return { items, page: { title: document.title, host: location.host, path: location.pathname, heading: heading.slice(0, 100) } };
+  }
+
+  /** Cocokkan tiap isian tersimpan ke field yang ada: kunci kuat (id/name/label/seksi) + urutan kemunculan, lalu kunci lemah, lalu label saja. */
+  function matchItems(items, current) {
+    const strong = new Map(); const weak = new Map(); const byLabel = new Map();
+    const push = (m, k, c) => { if (!m.has(k)) m.set(k, []); m.get(k).push(c); };
+    for (const c of current) { push(strong, strongKey(c), c); push(weak, weakKey(c), c); push(byLabel, c.kind + '|' + c.label, c); }
+    const used = new Set(); const seenStrong = new Map(); const pairs = [];
+    for (const it of items) {
+      const sk = strongKey(it); const occ = seenStrong.get(sk) || 0; seenStrong.set(sk, occ + 1);
+      let target = (strong.get(sk) || [])[occ];
+      if (!target || used.has(target)) target = (weak.get(weakKey(it)) || []).find((c) => !used.has(c));
+      if (!target && it.label) target = (byLabel.get(it.kind + '|' + it.label) || []).find((c) => !used.has(c));
+      if (target && !used.has(target)) { used.add(target); pairs.push({ item: it, target }); } else pairs.push({ item: it, target: null });
+    }
+    return pairs;
+  }
+
+  const same = (c, it) => {
+    if (it.kind === 'multiselect') return [...(c.value || [])].sort().join(',') === [...(it.value || [])].sort().join(',');
+    if (it.kind === 'combobox') return String(c.value).trim().toLowerCase() === String(it.value).trim().toLowerCase();
+    return c.value === it.value;
+  };
+
+  async function restoreOne(c, it, opts) {
+    const k = it.kind;
+    if (k === 'radio') {
+      if (!c.els.some((x) => x.value === it.value)) return false;
+      return applyOne({ field: { kind: 'radio' }, els: c.els }, it.value, 'restore', opts);
+    }
+    if (k === 'select') {
+      const opt = [...c.el.options].find((o) => o.value === it.value) || (it.text && [...c.el.options].find((o) => text(o) === it.text));
+      if (!opt) return false;
+      return applyOne({ field: { kind: 'select' }, el: c.el }, opt.value, 'restore', opts);
+    }
+    if (k === 'multiselect') {
+      const have = new Set([...c.el.options].map((o) => o.value));
+      if (!(it.value || []).every((v) => have.has(v))) return false;
+      return applyOne({ field: { kind: 'multiselect' }, el: c.el }, it.value, 'restore', opts);
+    }
+    if (k === 'combobox') {
+      history.push({ el: c.el, kind: 'value', prev: c.el.tagName === 'INPUT' ? c.el.value : '' });
+      const ok = await fillCombobox(c.el, it.value, true);
+      if (ok && opts.highlight) mark(c.el, 'restore');
+      return ok;
+    }
+    return applyOne({ field: { kind: k }, el: c.el }, it.value, 'restore', opts);
+  }
+
+  async function restore(items, opts) {
+    opts = Object.assign({ highlight: true, passes: 4, waitMs: 700, includePassword: true }, opts || {});
+    const tag = frameTag();
+    let todo = (items || []).filter((it) => !it.frame || it.frame === tag);
+    const restored = []; let unchanged = 0;
+    for (let pass = 0; pass < opts.passes && todo.length; pass++) {
+      if (pass) await sleep(opts.waitMs);
+      const pairs = matchItems(todo, collect({ includePassword: opts.includePassword }));
+      const next = []; let progress = false;
+      for (const { item, target } of pairs) {
+        if (!target) { next.push(item); continue; }
+        if (same(target, item)) { unchanged++; progress = true; continue; }
+        let ok = false;
+        try { ok = await restoreOne(target, item, opts); } catch (e) { ok = false; }
+        if (ok) { progress = true; restored.push({ label: item.label || item.name, value: Array.isArray(item.value) ? item.value.join(', ') : String(item.value) }); } else next.push(item);
+        await sleep(60); // beri waktu isian ini memicu dropdown / field turunannya
+      }
+      todo = next;
+      if (!progress && pass > 0) break;
+    }
+    return { restored, unchanged, missing: todo.map((it) => it.label || it.name || it.kind) };
+  }
+
+  window.__aiFill = { version: 2, scan, apply, undo, collectErrors, scanInvalid, snapshot, restore, registrySize: () => registry.size, _internals: { labelOf, sectionOf, collect, matchItems } };
 })();

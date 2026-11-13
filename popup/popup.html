@@ -12,6 +12,19 @@
     <button id="openOptions" class="icon" title="Opsi">⚙</button>
   </header>
 
+  <section id="snapBox">
+    <label>Simpan &amp; pasang isian <span class="muted">(tanpa AI · Alt+Shift+S / R)</span></label>
+    <div class="snaprow">
+      <input id="snapName" type="text" placeholder="Nama (opsional)">
+      <button id="snapSave" class="primary">Simpan isian</button>
+    </div>
+    <select id="snapList"></select>
+    <div class="snaprow">
+      <button id="snapRestore" class="primary">Pasang</button>
+      <button id="snapDelete">Hapus</button>
+    </div>
+  </section>
+
   <section>
     <label>Model <span id="modelHint" class="muted"></span></label>
     <select id="model"></select>

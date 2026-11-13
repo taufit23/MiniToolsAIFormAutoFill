@@ -41,7 +41,7 @@
     card.innerHTML =
       '<div class="head"><span class="dot ' + esc(state.status || '') + (state.status === 'busy' ? ' busy' : '') + '"></span><span>' + esc(state.title || 'AI Form Fill') + '</span><button class="x" title="Tutup">×</button></div>' +
       '<div class="body">' + (state.message ? '<div class="muted">' + esc(state.message) + '</div>' : '') + '</div>' +
-      (items.length ? '<div class="list">' + items.map((i) => '<div class="row"><b title="' + esc(i.label) + '">' + esc(i.label || i.id) + '</b><span title="' + esc(i.value) + '">' + esc(i.value) + '</span><i class="tag ' + (i.source === 'ai' ? '' : 'h') + '">' + (i.source === 'ai' ? 'AI' : 'lokal') + '</i></div>').join('') + '</div>' : '') +
+      (items.length ? '<div class="list">' + items.map((i) => '<div class="row"><b title="' + esc(i.label) + '">' + esc(i.label || i.id) + '</b><span title="' + esc(i.value) + '">' + esc(i.value) + '</span><i class="tag ' + (i.source === 'ai' ? '' : 'h') + '">' + (i.source === 'ai' ? 'AI' : i.source === 'restore' ? 'simpan' : 'lokal') + '</i></div>').join('') + '</div>' : '') +
       ((state.actions || []).length ? '<div class="actions">' + state.actions.map((a) => '<button class="btn' + (a.primary ? ' primary' : '') + '" data-a="' + esc(a.id) + '">' + esc(a.label) + '</button>').join('') + '</div>' : '');
     card.querySelector('.x').addEventListener('click', hide);
     for (const b of card.querySelectorAll('[data-a]')) b.addEventListener('click', () => chrome.runtime.sendMessage({ type: 'panelAction', action: b.getAttribute('data-a') }));

@@ -2,6 +2,7 @@
 const $ = (id) => document.getElementById(id);
 let detected = [];
 let host = '';
+let pagePath = '';
 let settings = null;
 
 const send = (msg) => chrome.runtime.sendMessage(msg);
@@ -20,10 +21,11 @@ async function load() {
   $('includePassword').checked = !!settings.includePassword;
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  try { host = new URL(tab.url).host; } catch (e) { host = ''; }
+  try { const u = new URL(tab.url); host = u.host; pagePath = u.pathname; } catch (e) { host = ''; pagePath = ''; }
   $('host').textContent = host ? '· ' + host : '';
   $('siteNotes').value = (settings.siteNotes && settings.siteNotes[host]) || '';
 
+  refreshSnapshots();
   const res = await send({ type: 'detect' });
   detected = (res && res.ok && res.data) || [];
   renderModels();
@@ -79,4 +81,33 @@ $('fill').addEventListener('click', () => run('fill', $('fill')));
 $('undo').addEventListener('click', () => run('undo', $('undo')));
 $('fix').addEventListener('click', () => run('fixErrors', $('fix')));
 $('openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+// ── simpan & pasang isian ──
+async function refreshSnapshots(selectId) {
+  const res = await send({ type: 'listSnapshots', host, path: pagePath });
+  const list = (res && res.ok && res.data) || [];
+  const sel = $('snapList');
+  sel.innerHTML = list.length
+    ? list.map((e) => '<option value="' + e.id + '">' + (e.path === pagePath ? '' : '[' + e.path + '] ') + e.name + ' (' + e.count + ' isian)</option>').join('')
+    : '<option value="">Belum ada isian tersimpan untuk situs ini</option>';
+  if (selectId) sel.value = selectId;
+  $('snapRestore').disabled = !list.length;
+  $('snapDelete').disabled = !list.length;
+}
+async function snapAction(btn, msg, after) {
+  btn.disabled = true;
+  $('result').textContent = 'Memproses…';
+  const res = await send(msg);
+  btn.disabled = false;
+  if (!res || !res.ok) { $('result').textContent = 'Gagal: ' + ((res && res.error) || 'tidak ada respons'); return; }
+  after(res.data || {});
+}
+$('snapSave').addEventListener('click', () => snapAction($('snapSave'), { type: 'saveSnapshot', name: $('snapName').value.trim() }, async (d) => {
+  $('result').textContent = d.error || (d.saved ? d.saved + ' isian disimpan' : 'Tidak ada isian untuk disimpan');
+  if (d.saved) { $('snapName').value = ''; await refreshSnapshots(d.id); }
+}));
+$('snapRestore').addEventListener('click', () => snapAction($('snapRestore'), { type: 'restoreSnapshot', id: $('snapList').value }, (d) => {
+  $('result').textContent = d.error || (d.restored || 0) + ' isian dipasang' + (d.unchanged ? ', ' + d.unchanged + ' sudah sama' : '') + (d.missing ? ' · ' + d.missing + ' belum cocok: ' + (d.missingLabels || []).join(', ') : '');
+}));
+$('snapDelete').addEventListener('click', () => snapAction($('snapDelete'), { type: 'deleteSnapshot', id: $('snapList').value }, async () => { $('result').textContent = 'Isian tersimpan dihapus'; await refreshSnapshots(); }));
 load();

@@ -42,6 +42,23 @@ Server lain bisa ditambah di **Opsi**. Model dimuat ke memori sejak popup dibuka
 
 **Strategi**: *Cerdas* (semua field oleh AI, paling koheren) atau *Cepat* (AI hanya untuk pilihan, teks bebas, dan field yang tidak dikenali; sisanya generator lokal).
 
+## Simpan & pasang isian (tanpa AI)
+
+Untuk menguji form yang sedang dikembangkan: isian Anda tidak hilang saat bug diperbaiki dan halaman dimuat ulang.
+
+1. Isi form (manual, atau dengan AI), lalu **Simpan isian** di popup, atau tekan **Alt+Shift+S**. Semua isian yang terlihat dibaca, termasuk
+   yang sudah terisi: teks, angka, tanggal, textarea, radio, centang/switch, `select` (nilai yang sedang terpilih), multi-select, dan combobox/dropdown kustom.
+2. Perbaiki bug, muat ulang halaman, lalu **Pasang** di popup, atau tekan **Alt+Shift+R** (memasang simpanan terbaru untuk halaman itu).
+3. Pemasangan memicu event yang dimengerti Vue/React dan mengulang beberapa putaran, sehingga dropdown yang opsinya baru dimuat dari API atau
+   bergantung pada dropdown lain sempat tersedia. Isian yang tidak ketemu dilaporkan, dan **Urungkan** tetap bisa dipakai.
+
+Catatan:
+- Simpanan disimpan per situs (host) dan diurutkan dengan halaman yang sama di atas; maksimal 40 simpanan, yang terlama dibuang. Data hanya di komputer ini.
+- Field dicocokkan lewat id/name/label/seksi, bukan id bawaan framework yang berubah tiap muat ulang. Field berlabel sama (baris tabel) dicocokkan menurut urutan.
+- Combobox dipasang dengan mode ketat: bila opsi yang sama tidak ada, field dilewati dan dilaporkan, tidak diganti opsi lain.
+- Kolom password ikut disimpan bila opsi "Isi kolom password" aktif; matikan bila tidak ingin tersimpan. File upload tidak bisa disimpan.
+- Baris form yang ditambahkan lewat tombol "tambah baris" tidak dibuat otomatis; tambahkan baris dulu, lalu pasang.
+
 ## Fitur tambahan
 
 - **Persona konsisten**: satu identitas (nama, email, telepon, kota, perusahaan, NIK/NPWP) dipakai ulang 30 menit, jadi alur beberapa halaman tetap nyambung.
@@ -64,7 +81,7 @@ Server lain bisa ditambah di **Opsi**. Model dimuat ke memori sejak popup dibuka
 
 ```
 npm install        # sekali, untuk jsdom
-npm test           # 20 tes: mesin halaman, jalur data, orkestrasi (chrome API palsu)
+npm test           # 26 tes: mesin halaman, simpan & pasang isian, jalur data, orkestrasi (chrome API palsu)
 npm run test:live  # tambah tes end-to-end ke Ollama lokal sungguhan
 ```
 

@@ -12,6 +12,8 @@
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "http://*/*", "https://*/*"],
   "commands": {
     "fill-page": { "suggested_key": { "default": "Alt+Shift+F" }, "description": "Isi form di halaman ini dengan AI" },
-    "undo-fill": { "suggested_key": { "default": "Alt+Shift+Z" }, "description": "Urungkan isian terakhir" }
+    "undo-fill": { "suggested_key": { "default": "Alt+Shift+Z" }, "description": "Urungkan isian terakhir" },
+    "save-snapshot": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Simpan semua isian form di halaman ini" },
+    "restore-snapshot": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "Pasang isian tersimpan terbaru ke halaman ini" }
   }
 }

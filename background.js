@@ -1,7 +1,7 @@
 /* Service worker: orkestrasi. Deteksi model lokal -> pindai form (semua frame) -> minta LLM -> rapikan -> isi -> tampilkan ringkasan. */
-importScripts('lib/heuristics.js', 'lib/prompt.js', 'lib/providers.js', 'lib/settings.js');
+importScripts('lib/heuristics.js', 'lib/prompt.js', 'lib/providers.js', 'lib/settings.js', 'lib/snapshots.js');
 
-const { heuristics: H, prompt: P, providers: PR, settings: S } = self.AIFF;
+const { heuristics: H, prompt: P, providers: PR, settings: S, snapshots: SN } = self.AIFF;
 const ENGINE_FILES = ['content/engine.js', 'content/panel.js'];
 let lastRun = {}; // tabId -> { mode, itemsByFrame }
 
@@ -34,6 +34,8 @@ chrome.commands.onCommand.addListener(async (cmd) => {
   const tab = await activeTab(); if (!tab) return;
   if (cmd === 'fill-page') runFill(tab.id, {});
   if (cmd === 'undo-fill') runUndo(tab.id);
+  if (cmd === 'save-snapshot') saveSnapshot(tab.id, '');
+  if (cmd === 'restore-snapshot') restoreSnapshot(tab.id, '');
 });
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab) return;
@@ -52,6 +54,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.type === 'fill') return sendResponse({ ok: true, data: await runFill(tabId, msg.opts || {}) });
       if (msg.type === 'undo') return sendResponse({ ok: true, data: await runUndo(tabId) });
       if (msg.type === 'fixErrors') return sendResponse({ ok: true, data: await runFix(tabId) });
+      if (msg.type === 'saveSnapshot') return sendResponse({ ok: true, data: await saveSnapshot(tabId, msg.name || '') });
+      if (msg.type === 'restoreSnapshot') return sendResponse({ ok: true, data: await restoreSnapshot(tabId, msg.id || '') });
+      if (msg.type === 'listSnapshots') return sendResponse({ ok: true, data: (await SN.listFor(msg.host || '', msg.path || '')).map(SN.summary) });
+      if (msg.type === 'deleteSnapshot') { await SN.remove(msg.id); return sendResponse({ ok: true, data: true }); }
       if (msg.type === 'panelAction') {
         if (msg.action === 'undo') await runUndo(tabId);
         else if (msg.action === 'fix') await runFix(tabId);
@@ -239,4 +245,57 @@ async function runFix(tabId) {
   }
   await panel(tabId, { status: err ? 'err' : 'ok', title: ok + ' field diperbaiki', message: err || 'Coba kirim ulang formulirnya.', items: resolved.map((r) => ({ id: r.id, label: (fields.find((f) => f.id === r.id) || {}).label, value: String(r.value), source: r.source })), actions: [{ id: 'undo', label: 'Urungkan' }, { id: 'fix', label: 'Periksa lagi', primary: true }] });
   return { fixed: ok };
+}
+
+// ── simpan & pasang isian ───────────────────────────────────────────────────
+// Berguna saat menguji form: simpan isian sebelum memperbaiki bug, lalu pasang lagi setelah halaman dimuat ulang. Tanpa AI.
+function pageOf(tab) { try { const u = new URL(tab.url); return { host: u.host, path: u.pathname }; } catch (e) { return { host: '', path: '' }; } }
+
+async function saveSnapshot(tabId, name) {
+  const s = await S.get();
+  const tab = await chrome.tabs.get(tabId);
+  if (!/^https?:|^file:/.test(tab.url || '')) return { error: 'Halaman ini tidak bisa dibaca (halaman khusus browser).' };
+  await injectEngine(tabId);
+  const scans = frameResults(await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: (o) => window.__aiFill.snapshot(o), args: [{ includePassword: !!s.includePassword }] }));
+  const items = []; let page = null;
+  for (const fr of scans) { if (!page || fr.frameId === 0) page = fr.result.page; items.push(...fr.result.items); }
+  if (!items.length) {
+    await panel(tabId, { status: 'err', title: 'Tidak ada isian untuk disimpan', message: 'Semua field terlihat masih kosong.', autoHideMs: 3500 });
+    return { saved: 0 };
+  }
+  const { host, path } = pageOf(tab);
+  const label = name || (new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' · ' + ((page && page.heading) || path));
+  const entry = await SN.add({ host, path, name: label, title: (page && page.title) || '', items });
+  await panel(tabId, {
+    status: 'ok', title: items.length + ' isian disimpan', message: 'Pasang lagi dengan Alt+Shift+R atau dari popup ekstensi.',
+    items: items.map((i) => ({ id: i.label, label: i.label || i.name || i.kind, value: Array.isArray(i.value) ? i.value.join(', ') : String(i.value), source: 'restore' })),
+    autoHideMs: 4000,
+  });
+  return { saved: items.length, id: entry.id, name: label };
+}
+
+async function restoreSnapshot(tabId, id) {
+  const s = await S.get();
+  const tab = await chrome.tabs.get(tabId);
+  if (!/^https?:|^file:/.test(tab.url || '')) return { error: 'Halaman ini tidak bisa diisi (halaman khusus browser).' };
+  const { host, path } = pageOf(tab);
+  const snap = id ? await SN.get(id) : (await SN.listFor(host, path))[0];
+  if (!snap) {
+    await panel(tabId, { status: 'err', title: 'Belum ada isian tersimpan', message: 'Simpan dulu dengan Alt+Shift+S.', autoHideMs: 3500 });
+    return { error: 'belum ada isian tersimpan' };
+  }
+  await injectEngine(tabId);
+  await panel(tabId, { status: 'busy', title: 'Memasang isian…', message: snap.count + ' isian dari "' + snap.name + '"' });
+  const outs = frameResults(await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: (it, o) => window.__aiFill.restore(it, o), args: [snap.items, { highlight: !!s.highlight, includePassword: !!s.includePassword }] }));
+  const restored = []; const missing = []; let unchanged = 0;
+  for (const o of outs) { restored.push(...o.result.restored); missing.push(...o.result.missing); unchanged += o.result.unchanged; }
+  const warn = missing.length ? ' · belum cocok: ' + missing.slice(0, 8).join(', ') + (missing.length > 8 ? '…' : '') : '';
+  await panel(tabId, {
+    status: missing.length && !restored.length && !unchanged ? 'err' : 'ok',
+    title: restored.length + ' isian dipasang' + (unchanged ? ', ' + unchanged + ' sudah sama' : ''),
+    message: (missing.length ? missing.length + ' tidak ditemukan atau opsinya belum tersedia' : 'Semua cocok') + warn,
+    items: restored.map((r) => ({ id: r.label, label: r.label, value: r.value, source: 'restore' })),
+    actions: [{ id: 'undo', label: 'Urungkan' }],
+  });
+  return { restored: restored.length, unchanged, missing: missing.length, missingLabels: missing.slice(0, 8), name: snap.name };
 }
